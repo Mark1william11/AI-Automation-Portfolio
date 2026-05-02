@@ -1,4 +1,5 @@
 ![n8n Workflow Architecture](workflow.png)
+[View Workflow JSON File](KYC_Automation_Pipeline.json)
 # Enterprise KYC AI-Automation Pipeline
 
 ## Overview
