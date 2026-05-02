@@ -1,0 +1,446 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kyc-trigger",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "[REDACTED]",
+      "name": "Webhook",
+      "webhookId": "[REDACTED]"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1. Get the original data from the Webhook node\nconst originalName = $('Webhook').first().json.body.applicant_name;\nconst applicantId = $('Webhook').first().json.body.applicant_id;\n\n// 2. Get the name Gemini found from your \"Edit Fields\" node\nconst passportName = $('Edit Fields').first().json.passport_name;\n\n// 3. Simple normalization (Lowercasing and removing extra spaces)\nconst name1 = originalName.toLowerCase().trim();\nconst name2 = passportName.toLowerCase().trim();\n\n// 4. Check for a match\nconst isMatch = (name1 === name2);\n\n// 5. Output the result\nreturn {\n  applicant_id: applicantId,\n  original_name: originalName,\n  extracted_name: passportName,\n  match_status: isMatch ? \"MATCHED\" : \"MISMATCH\"\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        0
+      ],
+      "id": "819e2b59-e2a3-4501-9ada-afb529483810",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "24627d74-88e4-4a07-83fa-d954a1053749",
+                    "leftValue": "={{ $json.match_status }}",
+                    "rightValue": "MATCHED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Approved"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "7c1b325d-46e8-4b97-87ff-8dc0b1a622f3",
+                    "leftValue": "={{ $json.match_status }}",
+                    "rightValue": "MISMATCH",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        992,
+        0
+      ],
+      "id": "c96e65b5-6d8d-47bb-a03c-83f6316ccb6b",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "=[YOUR_SLACK_CHANNEL_ID]",
+          "mode": "id"
+        },
+        "text": "=🚨 KYC Verification Failed 🚨\nApplicant: {{ $('Webhook').first().json.body.applicant_name }}\nID: {{ $('Webhook').first().json.body.applicant_id }}\nAI Extraction: {{ $('Edit Fields').first().json.passport_name }}\nStatus: Requires Manual Review",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1248,
+        96
+      ],
+      "id": "b3f24ef1-3151-4ec7-9c32-915153f0b4ee",
+      "name": "Send a message",
+      "webhookId": "[REDACTED]",
+      "credentials": {
+        "slackApi": {
+          "id": "tEDcTDgSHFh232Jv",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.body.passport_image_url }}",
+              "role": "model"
+            },
+            {
+              "content": "=You are a strict data extraction API. Look at this passport image. Extract the full name exactly as written. Output ONLY valid JSON in this exact format: {\"passport_name\": \"extracted name\"}. Do not include markdown formatting like"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "39a0e36b-9017-4fa7-ac15-1ec1a4c39070",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "JwWZoy5W5fVxF6SY",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ $json.content.parts[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        592,
+        0
+      ],
+      "id": "fe7cdbd1-18e7-4632-af41-0e487473c4da",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": {
+          "__rl": true,
+          "value": "[YOUR_AIRTABLE_BASE_ID]",
+          "mode": "list",
+          "cachedResultName": "Visa Approvals",
+          "cachedResultUrl": "https://airtable.com/appA8A7JV43vkUTUm"
+        },
+        "table": {
+          "__rl": true,
+          "value": "[YOUR_AIRTABLE_TABLE_ID]",
+          "mode": "list",
+          "cachedResultName": "Table 1",
+          "cachedResultUrl": "https://airtable.com/appA8A7JV43vkUTUm/tblrVJkU43Se4rv4k"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": 0,
+            "Match_Score": 1,
+            "Original Name": "={{ $('Code in JavaScript').item.json.original_name }}",
+            "Extracted Name": "={{ $('Code in JavaScript').item.json.extracted_name }}",
+            "Passport_Name": "={{ $('Edit Fields').item.json.passport_name }}",
+            "Attachments": "={{ $('Webhook').item.json.body.passport_image_url }}",
+            "Status": "Done"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Original Name",
+              "displayName": "Original Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Extracted Name",
+              "displayName": "Extracted Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Todo",
+                  "value": "Todo"
+                },
+                {
+                  "name": "In progress",
+                  "value": "In progress"
+                },
+                {
+                  "name": "Done",
+                  "value": "Done"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Match_Score",
+              "displayName": "Match_Score",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Passport_Name",
+              "displayName": "Passport_Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachments",
+              "displayName": "Attachments",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Attachment Summary",
+              "displayName": "Attachment Summary",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1248,
+        -144
+      ],
+      "id": "c40933af-215a-4da9-b402-16819013dad1",
+      "name": "Create or update a record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "ygiS3LaKsw1Jeq0L",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "content-type": "application/json",
+            "user-agent": "PostmanRuntime/7.53.0",
+            "accept": "*/*",
+            "postman-token": "522ed228-c73e-4c1e-a380-192c3f68c444",
+            "host": "localhost:5678",
+            "accept-encoding": "gzip, deflate, br",
+            "connection": "keep-alive",
+            "content-length": "174"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "applicant_id": "APP-9982",
+            "applicant_name": "Mark William Khalaf",
+            "passport_image_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/World_Passport_front_page.jpg/960px-World_Passport_front_page.jpg"
+          },
+          "webhookUrl": "http://localhost:5678/webhook-test/kyc-trigger",
+          "executionMode": "test"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Create or update a record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "1220481f-06f3-48d3-8a44-9334a0d3c67d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ac04bfd9839e424c6b3670e8c25eabdd082c49470e46feb82c29277c55e01175"
+  },
+  "id": "HudctZsZTYrTttSE",
+  "tags": []
+}
