@@ -1,3 +1,4 @@
+![n8n Workflow Architecture](workflow.png)
 # Enterprise KYC AI-Automation Pipeline
 
 ## Overview
