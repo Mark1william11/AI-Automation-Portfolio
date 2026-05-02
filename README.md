@@ -8,7 +8,7 @@ Manual verification of identity documents (Visas/Passports) against applicant da
 
 ## System Architecture
 - **Ingestion:** REST API / Webhooks.
-- **Intelligence:** Google Gemini 1.5 Flash Vision (OCR extraction of unstructured ID data).
+- **Intelligence:** Google Gemini 2.5 Flash Vision (OCR extraction of unstructured ID data).
 - **Validation Engine:** Custom JavaScript implementation of the Levenshtein Distance algorithm to normalize and validate name matches with a 95% threshold.
 - **Data Persistence:** Airtable (CRM/ERP simulation).
 - **Operational Logic:** Conditional routing for "Human-in-the-loop" overrides via Slack API on data discrepancies.
