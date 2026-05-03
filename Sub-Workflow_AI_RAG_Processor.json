@@ -1,0 +1,57 @@
+{
+  "name": "Project 4: Sub-Processor (AI RAG)",
+  "nodes": [
+    {
+      "parameters": { "inputSource": "passthrough" },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "id": "trigger-node",
+      "name": "Sub-Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $input.first().json;\nconst userQuestion = incoming.body?.question || incoming.question || \"NO_QUESTION_FOUND\";\nconst kb_context = \"Refund Policy: Items can be returned within 30 days of receipt. Digital items are non-refundable.\";\nreturn { json: { question: userQuestion, context: kb_context } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "id": "code-node",
+      "name": "Context Injection"
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "models/gemini-1.5-flash", "mode": "list" },
+        "messages": {
+          "values": [
+            { "content": "You are a support agent. Use ONLY the provided context. If unknown, escalate.", "role": "model" },
+            { "content": "=Question: {{ $json.question }} | Context: {{ $json.context }}" }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [450, 0],
+      "id": "ai-node",
+      "name": "Gemini AI"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "value": "[YOUR_SLACK_CHANNEL_ID]", "mode": "id" },
+        "text": "=🤖 *AI Support Draft:*\n*User:* {{ $('Context Injection').first().json.question }}\n*Answer:* {{ $json.content.parts[0].text }}"
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [700, 0],
+      "id": "slack-node",
+      "name": "Slack Alert"
+    }
+  ],
+  "connections": {
+    "Sub-Workflow Trigger": { "main": [[{ "node": "Context Injection", "type": "main", "index": 0 }]] },
+    "Context Injection": { "main": [[{ "node": "Gemini AI", "type": "main", "index": 0 }]] },
+    "Gemini AI": { "main": [[{ "node": "Slack Alert", "type": "main", "index": 0 }]] }
+  }
+}
