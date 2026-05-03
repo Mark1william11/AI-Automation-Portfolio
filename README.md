@@ -73,6 +73,28 @@ Sales teams often waste 30-40% of their time on low-quality leads. Manual qualif
 
 ---
 
+## 4. Asynchronous RAG Support Engine
+### [View Main Workflow](main_arch.png) | [View Sub-Workflow](sub_arch.png)
+
+### Overview
+A decoupled support architecture designed to handle high-latency AI tasks (RAG) without triggering webhook timeouts in parent systems (Shopify/Zendesk).
+
+### The Business Problem
+Standard webhooks expect a response in <3 seconds. AI generation and Vector DB lookups often take 10+ seconds, leading to connection drops and failed integrations.
+
+### System Architecture
+- **Main Workflow:** Acts as a high-speed "Receiver" that responds with a `200 OK` instantly while passing the payload to a background process.
+- **Sub-Workflow:** Operates asynchronously, performing a simulated RAG lookup and synthesizing a response using Gemini 1.5 Flash.
+- **Fault Tolerance:** Robust JavaScript parsing ensures that even if the incoming JSON structure varies, the core query is extracted and processed.
+
+### Tech Stack
+- n8n (Asynchronous Orchestration)
+- Google Gemini (LLM)
+- JavaScript (Data Parsing)
+- Slack API
+
+---
+
 ## Tech Stack & Skills
 - **Automation:** n8n, Make.com, Webhooks, Recursive Looping, Batch Processing.
 - **AI:** Google Gemini, Prompt Engineering, OCR, LLM-Data Extraction.
