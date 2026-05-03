@@ -1,5 +1,5 @@
 # AI & Operations Automation Portfolio
-**By Mark Khalaf | Technical Computer Science Engineer**
+**By Mark William | Technical Computer Science Engineer**
 
 A collection of enterprise-grade automation systems designed for high-volume operations, focusing on scalability, data integrity, and deterministic AI logic.
 
