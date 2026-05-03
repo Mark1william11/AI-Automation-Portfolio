@@ -1,0 +1,343 @@
+{
+  "name": "Project 2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        32
+      ],
+      "id": "26b4bd8e-e301-44d6-ac68-047f43dc74c8",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "batchSize": 50,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        448,
+        32
+      ],
+      "id": "974cf6b6-a60c-4da8-b875-7e0f8b4d3381",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  return {\n    json: {\n      external_id: item.json.id,\n      email_hash: item.json.email.toLowerCase(),\n      content: item.json.body.substring(0, 50) + \"...\", // Truncate for database storage\n      migration_timestamp: new Date().toISOString()\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        32
+      ],
+      "id": "e9f386da-e9c8-4f6a-ab2a-08abbb7cd792",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "[REDACTED_API_ENDPOINT]",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        976,
+        32
+      ],
+      "id": "21b437c7-8539-49a3-8523-bcd984c55ac9",
+      "name": "HTTP Request1",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1648,
+        112
+      ],
+      "id": "ef31feaa-a738-4acb-8504-422bec06ca60",
+      "name": "Wait",
+      "webhookId": "38227eed-bca2-4fd2-8326-7a1e036599b5"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "[YOUR_SLACK_CHANNEL_ID]",
+          "mode": "id"
+        },
+        "text": "=✅ Migration Complete. All batches processed. Total records: {{ $input.all().length }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        752,
+        -160
+      ],
+      "id": "7c527ed4-a9a8-4469-adc2-c929a4a6410e",
+      "name": "Send a message",
+      "webhookId": "44e2d7ef-cf76-40f8-860e-484f7c2965fd",
+      "executeOnce": true,
+      "credentials": {
+        "slackApi": {
+          "id": "[REDACTED_API_ENDPOINT]",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b6280379-b39c-4704-8be4-cce311691670",
+              "leftValue": "={{ $node[\"HTTP Request1\"].json.error.message }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        32
+      ],
+      "id": "3ea1b335-d0ba-4b8e-a6d2-1e9e8f56c9bc",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const records = [];\nfor (let i = 1; i <= 500; i++) {\n  records.push({\n    json: {\n      id: i,\n      email: `user${i}@example.com`,\n      body: `This is a sample comment for record number ${i}.`\n    }\n  });\n}\nreturn records;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        32
+      ],
+      "id": "e7ff6e11-b34a-4595-add6-cc9c7a8acd0f",
+      "name": "Code in JavaScript1",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "[YOUR_GOOGLE_SHEET_ID]",
+          "mode": "list",
+          "cachedResultName": "Migration_Error_Log",
+          "cachedResultUrl": "[YOUR_GOOGLE_SHEET_URL]"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1OOscEbZyJvbaaRyONJog_VEJyzb0fgnM3jz2n3KE7i8/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Record_ID": "={{ $json.id }}",
+            "Timestamp": "={{ $now }}",
+            "Error_Message": "={{ $node[\"HTTP Request1\"].json.error?.message || \"Unknown API Error\" }}"
+          },
+          "matchingColumns": [
+            "Record_ID"
+          ],
+          "schema": [
+            {
+              "id": "Record_ID",
+              "displayName": "Record_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Error_Message",
+              "displayName": "Error_Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1440,
+        -224
+      ],
+      "id": "96f47b6d-b758-4096-ae67-999aae24549d",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ZPulhOtNctZmVoQB",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c39140d7-783a-4dc4-a3dc-6313045dc881",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ac04bfd9839e424c6b3670e8c25eabdd082c49470e46feb82c29277c55e01175"
+  },
+  "id": "ue0054WUF49dO5Gc",
+  "tags": []
+}
