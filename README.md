@@ -50,6 +50,29 @@ Standard automations often crash during large-scale migrations due to memory ove
 
 ---
 
+## 3. Autonomous B2B Lead Scoring Engine (RevOps)
+### [View System Architecture](scoring_workflow.png) | [View Workflow JSON File](B2B_Lead_Scoring_Engine.json)
+
+### Overview
+A Revenue Operations (RevOps) automation that qualifies inbound leads in real-time using AI-driven scoring and firmographic extraction.
+
+### The Business Problem
+Sales teams often waste 30-40% of their time on low-quality leads. Manual qualification causes delays in responding to high-value "Hot" leads, leading to lost conversion opportunities.
+
+### System Architecture
+- **Ingestion:** Webhook-based trigger capturing raw lead data (Email, Name).
+- **Enrichment Logic:** Custom JavaScript node to extract domains and prepare data for firmographic analysis.
+- **AI Scoring Brain:** Gemini 1.5 Flash evaluates the lead against a defined Ideal Customer Profile (ICP), returning a structured score (1-10) and a qualitative reason.
+- **Logic Routing:** A Switch node performs multi-path routing based on the AI-generated score.
+- **Actions:** High-value leads trigger immediate Slack alerts for the sales team; low-value leads are automatically routed to a nurture campaign.
+
+### Key Technical Features
+- **Data Normalization:** Automated domain extraction from email strings to simplify lookup.
+- **Contextual Intelligence:** Uses LLM reasoning to categorize company industry and potential value without manual research.
+- **Speed-to-Lead:** Reduces lead qualification time from hours to milliseconds.
+
+---
+
 ## Tech Stack & Skills
 - **Automation:** n8n, Make.com, Webhooks, Recursive Looping, Batch Processing.
 - **AI:** Google Gemini, Prompt Engineering, OCR, LLM-Data Extraction.
