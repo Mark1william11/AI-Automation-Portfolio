@@ -83,8 +83,8 @@ A decoupled support architecture designed to handle high-latency AI tasks (RAG) 
 Standard webhooks expect a response in <3 seconds. AI generation and Vector DB lookups often take 10+ seconds, leading to connection drops and failed integrations.
 
 ### System Architecture
-- **Main Workflow:** Acts as a high-speed "Receiver" that responds with a `200 OK` instantly while passing the payload to a background process. [View Main Workflow JSON File](Asynchronous_Support_Webhook.json)
-- **Sub-Workflow:** Operates asynchronously, performing a simulated RAG lookup and synthesizing a response using Gemini 1.5 Flash. [View Sub-Workflow JSON File](Sub-Workflow_AI_RAG_Processor.json)
+- **[Main Workflow:](Asynchronous_Support_Webhook.json)** Acts as a high-speed "Receiver" that responds with a `200 OK` instantly while passing the payload to a background process.
+- **[Sub-Workflow:](Sub-Workflow_AI_RAG_Processor.json)** Operates asynchronously, performing a simulated RAG lookup and synthesizing a response using Gemini 1.5 Flash.
 - **Fault Tolerance:** Robust JavaScript parsing ensures that even if the incoming JSON structure varies, the core query is extracted and processed.
 
 ### Tech Stack
