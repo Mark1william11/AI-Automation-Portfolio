@@ -1,0 +1,156 @@
+{
+  "name": "RevOps: AI Lead Scoring Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "webhook-node",
+      "name": "Webhook",
+      "webhookId": "[REDACTED]"
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $('Webhook').first().json.body.email;\nconst domain = email.split('@')[1];\n\nreturn {\n  json: {\n    lead_name: $('Webhook').first().json.body.lead_name,\n    email: email,\n    domain: domain,\n    reported_size: $('Webhook').first().json.body.company_size_reported\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [208, 0],
+      "id": "logic-node",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-1.5-flash",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a strict B2B RevOps Lead Scorer. Evaluate the company domain provided. ICP: Tech/Manufacturing >100 employees. Score 1-10. Output ONLY JSON: {\"company_industry\": \"...\", \"score\": 8, \"reason\": \"...\"}",
+              "role": "model"
+            },
+            {
+              "content": "Domain: {{ $json.domain }} | Reported Size: {{ $json.reported_size }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [384, 0],
+      "id": "ai-node",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": { "id": "[INTERNAL_ID]", "name": "Google Gemini" }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ $json.content.parts[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [736, 0],
+      "id": "parse-node",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.score }}",
+                    "rightValue": 7,
+                    "operator": { "type": "number", "operation": "gte" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Send to Sales"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.score }}",
+                    "rightValue": 7,
+                    "operator": { "type": "number", "operation": "lt" }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "Add to Nurture Campaign"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [944, 0],
+      "id": "router-node",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "[YOUR_SLACK_CHANNEL_ID]",
+          "mode": "id"
+        },
+        "text": "=🔥 HOT LEAD ALERT: {{ $('Code in JavaScript').first().json.lead_name }} from {{ $('Code in JavaScript').first().json.domain }}. Score: {{ $json.score }}/10.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [1248, -112],
+      "id": "slack-hot",
+      "name": "Slack: Hot Lead",
+      "credentials": {
+        "slackApi": { "id": "[INTERNAL_ID]", "name": "Slack" }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "[YOUR_SLACK_CHANNEL_ID]",
+          "mode": "id"
+        },
+        "text": "=❄️ Cold Lead added to email drip: {{ $('Code in JavaScript').first().json.domain }}. Score: {{ $json.score }}/10.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [1248, 112],
+      "id": "slack-cold",
+      "name": "Slack: Cold Lead",
+      "credentials": {
+        "slackApi": { "id": "[INTERNAL_ID]", "name": "Slack" }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Code in JavaScript", "type": "main", "index": 0 }]] },
+    "Code in JavaScript": { "main": [[{ "node": "Message a model", "type": "main", "index": 0 }]] },
+    "Message a model": { "main": [[{ "node": "Edit Fields", "type": "main", "index": 0 }]] },
+    "Edit Fields": { "main": [[{ "node": "Switch", "type": "main", "index": 0 }]] },
+    "Switch": { "main": [[{ "node": "Slack: Hot Lead", "type": "main", "index": 0 }], [{ "node": "Slack: Cold Lead", "type": "main", "index": 0 }]] }
+  }
+}
